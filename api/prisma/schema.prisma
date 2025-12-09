@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Perfil {
+  ADMIN
+  PACIENTE
+  ATENDENTE
+  MEDICO
+}
+
+enum StatusAgendamento {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+  NAO_COMPARECEU
+}
+
+model Usuario {
+  id         String  @id @default(cuid())
+  nome       String
+  email      String  @unique
+  senhaHash  String
+  perfil     Perfil
+  ativo      Boolean @default(true)
+
+  // Rastreamento
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  // Relações
+  consultasComoPaciente Consulta[] @relation("ConsultaPaciente")
+  consultasComoMedico   Consulta[] @relation("ConsultaMedico")
+  examesComoPaciente    Exame[]    @relation("ExamePaciente")
+  examesComoMedico      Exame[]    @relation("ExameMedico")
+  resultadosExames      ResultadoExame[]
+
+  // Push tokens (tabela auxiliar)
+  pushTokens PushToken[]
+}
+
+model Consulta {
+  id         String   @id @default(cuid())
+  dia        DateTime // dia da consulta
+  hora       String   // HH:mm (mantendo o requisito original)
+  dataHora   DateTime // coluna derivada útil para índices/consultas
+  detalhes   String?  // observações do médico
+
+  status     StatusAgendamento @default(AGENDADA)
+
+  // Relações
+  paciente   Usuario  @relation("ConsultaPaciente", fields: [pacienteId], references: [id])
+  pacienteId String
+  medico     Usuario  @relation("ConsultaMedico", fields: [medicoId], references: [id])
+  medicoId   String
+
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([medicoId, dataHora])
+  @@index([pacienteId, dataHora])
+  @@unique([medicoId, dataHora]) // evita conflito de horários
+}
+
+model Exame {
+  id         String   @id @default(cuid())
+  nome       String   // tipo de exame
+  dia        DateTime
+  hora       String
+  dataHora   DateTime
+  detalhes   String?  // observações
+
+  status     StatusAgendamento @default(AGENDADA)
+
+  // Relações
+  paciente   Usuario  @relation("ExamePaciente", fields: [pacienteId], references: [id])
+  pacienteId String
+  medico     Usuario  @relation("ExameMedico", fields: [medicoId], references: [id])
+  medicoId   String
+
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  resultados ResultadoExame[]
+
+  @@index([medicoId, dataHora])
+  @@index([pacienteId, dataHora])
+  @@unique([medicoId, dataHora])
+}
+
+model ResultadoExame {
+  id         String  @id @default(cuid())
+  detalhes   String? // laudo textual
+  arquivoUrl String? // link para arquivo (PDF, imagem)
+  publicadoEm DateTime @default(now())
+
+  // Relações
+  exame      Exame   @relation(fields: [exameId], references: [id])
+  exameId    String
+  paciente   Usuario @relation(fields: [pacienteId], references: [id])
+  pacienteId String
+  medico     Usuario @relation(fields: [medicoId], references: [id])
+  medicoId   String
+
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([exameId])
+  @@index([pacienteId])
+  @@index([medicoId])
+}
+
+// Tabela auxiliar para notificações push (multi-dispositivo por usuário)
+model PushToken {
+  id         String  @id @default(cuid())
+  usuario    Usuario @relation(fields: [usuarioId], references: [id])
+  usuarioId  String
+  token      String  // token Expo/FCM
+  plataforma String  // 'ios' | 'android' | 'web'
+  ativo      Boolean @default(true)
+
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([usuarioId])
+  @@unique([token])
+}
