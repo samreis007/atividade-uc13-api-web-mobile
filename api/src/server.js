@@ -18,17 +18,50 @@ const PORT = process.env.PORT || 3333;
 
 // Middlewares globais
 app.use(express.json());
-app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
-    credentials: true
-}));
 
-// Rota de health check
+// Configuração CORS melhorada para mobile e web
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Permitir requisições sem origin (mobile apps, Postman, etc)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+            'http://localhost:3000',  // Web (Next.js)
+            'http://localhost:8081',  // Mobile (Expo)
+        ];
+
+        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400 // 24 horas
+};
+
+app.use(cors(corsOptions));
+
+// Rota de health check melhorada
 app.get('/', (req, res) => {
     res.json({
-        message: 'Clínica API - Sistema de Consultas e Exames',
+        name: 'Clínica API - Sistema de Consultas e Exames',
         version: '1.0.0',
-        status: 'online'
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        endpoints: {
+            docs: '/docs',
+            auth: '/auth',
+            users: '/users',
+            consultas: '/consultas',
+            exames: '/exames',
+            resultados: '/resultados',
+            pushTokens: '/push-tokens'
+        },
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 
