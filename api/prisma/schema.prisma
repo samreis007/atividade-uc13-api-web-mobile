@@ -41,7 +41,8 @@ model Usuario {
   consultasComoMedico   Consulta[] @relation("ConsultaMedico")
   examesComoPaciente    Exame[]    @relation("ExamePaciente")
   examesComoMedico      Exame[]    @relation("ExameMedico")
-  resultadosExames      ResultadoExame[]
+  resultadosComoPaciente ResultadoExame[] @relation("ResultadoPaciente")
+  resultadosComoMedico   ResultadoExame[] @relation("ResultadoMedico")
 
   // Push tokens (tabela auxiliar)
   pushTokens PushToken[]
@@ -105,9 +106,9 @@ model ResultadoExame {
   // Relações
   exame      Exame   @relation(fields: [exameId], references: [id])
   exameId    String
-  paciente   Usuario @relation(fields: [pacienteId], references: [id])
+  paciente   Usuario @relation("ResultadoPaciente", fields: [pacienteId], references: [id])
   pacienteId String
-  medico     Usuario @relation(fields: [medicoId], references: [id])
+  medico     Usuario @relation("ResultadoMedico", fields: [medicoId], references: [id])
   medicoId   String
 
   criadoEm   DateTime @default(now())
